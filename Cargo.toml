@@ -1,0 +1,31 @@
+[package]
+edition = "2021"
+name = "models_player"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build]
+target = "wasm32-unknown-unknown"
+
+[dependencies]
+bytemuck = {version = "1.12.1", features = ["derive"]}
+cgmath = "0.18.0"
+gloo = "0.8.0"
+once_cell = "1.14.0"
+tobj = {version = "3.2.3", features = ["async"]}
+wasm-bindgen = "0.2.83"
+wasm-bindgen-futures = "0.4.33"
+wgpu = {version = "0.13.1", features = ["webgl"]}
+yew = "0.19.3"
+yew-canvas = "0.2.1"
+thiserror = "1.0.37"
+
+[dependencies.image]
+default-features = false
+features = ["png", "jpeg"]
+version = "0.24.3"
+
+[dependencies.web-sys]
+features = ["HtmlCanvasElement", "WebGl2RenderingContext", "DragEvent", "HtmlDivElement"]
+version = "0.3.60"
