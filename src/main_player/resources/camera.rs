@@ -25,6 +25,10 @@ impl Camera {
 
         return OPENGL_TO_WGPU_MATRIX * proj * view;
     }
+
+    pub fn get_pos(&self) -> (f32, f32, f32) {
+        (self.eye.x, self.eye.y, self.eye.z)
+    }
 }
 
 #[repr(C)]

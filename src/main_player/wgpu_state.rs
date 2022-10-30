@@ -1,8 +1,5 @@
 use once_cell::sync::OnceCell;
-use std::{
-    borrow::Borrow,
-    cell::{Cell, RefCell},
-};
+use std::cell::{Cell, RefCell};
 use web_sys::HtmlCanvasElement;
 use wgpu::util::DeviceExt;
 
@@ -155,7 +152,12 @@ impl State {
         })
     }
 
-    pub fn resize(&self, width: u32, height: u32) {
+    pub fn display_change(
+        &self,
+        width: u32,
+        height: u32,
+        cursor_to: (i32, i32),
+    ) -> PlayerErrorResult<()> {
         self.width.set(width);
         self.height.set(height);
 
@@ -165,19 +167,50 @@ impl State {
             config.height = height;
         }
 
-        self.camera.set(camera::Camera {
-            aspect: width as f32 / height as f32,
-            ..self.camera.get()
-        });
+        {
+            let dr = 0.0f32;
+
+            let mut camera_pos = self.camera.get().get_pos();
+            let mut r_xy = camera_pos.1.hypot(camera_pos.1);
+            let r = r_xy.hypot(camera_pos.1) + dr;
+
+            let dz = (cursor_to.0 as f32).cos() * r;
+            let dr_xy = (cursor_to.0 as f32).sin() * r;
+
+            camera_pos.2 += dz;
+            r_xy += dr_xy;
+
+            let dx = (cursor_to.0 as f32).sin() * r_xy;
+            let dy = (cursor_to.0 as f32).cos() * r_xy;
+
+            camera_pos.0 += dx;
+            camera_pos.1 += dy;
+
+            self.camera.set(camera::Camera {
+                eye: cgmath::Point3 {
+                    x: camera_pos.0,
+                    y: camera_pos.1,
+                    z: camera_pos.2,
+                },
+                aspect: width as f32 / height as f32,
+                ..self.camera.get()
+            });
+        }
 
         {
             let mut camera_uniform = self.camera_uniform.get();
             camera_uniform.update_view_proj(&self.camera.get());
             self.camera_uniform.set(camera_uniform);
         }
+
+        self.render()
     }
 
-    pub fn render(&self) -> PlayerErrorResult<()> {
+    pub fn anima_pass(&self) -> PlayerErrorResult<()> {
+        self.render()
+    }
+
+    fn render(&self) -> PlayerErrorResult<()> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
