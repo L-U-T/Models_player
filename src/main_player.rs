@@ -88,7 +88,7 @@ pub fn main_player() -> Html {
                 style="height: 100vh; width: 100vw;"
             >
                 <h1>
-                    {"Sorry, brower u use dont support canvas"}
+                    {"Sorry, browser u use don't support canvas"}
                 </h1>
             </Canvas<WebGl2RenderingContext , Rander>>
         </div>
