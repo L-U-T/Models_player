@@ -61,13 +61,15 @@ pub fn main_player() -> Html {
     };
 
     let onmousemove = {
-        let cursor_before = *cursor_move_state.clone();
         let cursor_to_state = cursor_to_state.clone();
 
         Callback::from(move |e: MouseEvent| {
             if *is_hold_state {
                 let cursor = (e.screen_x(), e.screen_y());
-                cursor_to_state.set((cursor_before.0 - cursor.0, cursor_before.1 - cursor.1));
+
+                cursor_to_state.set((cursor_move_state.0 - cursor.0, cursor_move_state.1 - cursor.1));
+
+                cursor_move_state.set(cursor);
             }
         })
     };

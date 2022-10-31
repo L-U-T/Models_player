@@ -73,6 +73,7 @@ impl State {
             width,
             height,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
         surface.configure(&device, &config);
 
@@ -156,7 +157,7 @@ impl State {
         &self,
         width: u32,
         height: u32,
-        cursor_to: (i32, i32),
+        d_cursor_to: (i32, i32),
     ) -> PlayerErrorResult<()> {
         self.width.set(width);
         self.height.set(height);
@@ -171,20 +172,22 @@ impl State {
             let dr = 0.0f32;
 
             let mut camera_pos = self.camera.get().get_pos();
-            let mut r_xy = camera_pos.1.hypot(camera_pos.1);
-            let r = r_xy.hypot(camera_pos.1) + dr;
+            let mut r_xy = camera_pos.0.hypot(camera_pos.1);
+            let r = r_xy.hypot(camera_pos.2) + dr;
 
-            let dz = (cursor_to.0 as f32).cos() * r;
-            let dr_xy = (cursor_to.0 as f32).sin() * r;
+            let dz = (d_cursor_to.0 as f32 / 1000.0).cos() * r;
+            let dr_xy = (d_cursor_to.0 as f32 / 1000.0).sin() * r;
 
-            camera_pos.2 += dz;
-            r_xy += dr_xy;
+            camera_pos.2 = dz;
+            r_xy = dr_xy;
 
-            let dx = (cursor_to.0 as f32).sin() * r_xy;
-            let dy = (cursor_to.0 as f32).cos() * r_xy;
+            let dx = (d_cursor_to.1 as f32 / 1000.0).sin() * r_xy;
+            let dy = (d_cursor_to.1 as f32 / 1000.0).cos() * r_xy;
 
-            camera_pos.0 += dx;
-            camera_pos.1 += dy;
+            camera_pos.0 = dx;
+            camera_pos.1 = dy;
+
+            gloo::console::log!(format!("{:?}", camera_pos));
 
             self.camera.set(camera::Camera {
                 eye: cgmath::Point3 {
@@ -201,6 +204,11 @@ impl State {
             let mut camera_uniform = self.camera_uniform.get();
             camera_uniform.update_view_proj(&self.camera.get());
             self.camera_uniform.set(camera_uniform);
+            self.queue.write_buffer(
+                &self.camera_buffer,
+                0,
+                bytemuck::cast_slice(&[self.camera_uniform.get()]),
+            );
         }
 
         self.render()
@@ -248,6 +256,10 @@ impl State {
                 }),
             });
         }
+
+        // submit will accept anything that implements IntoIter
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
 
         Ok(())
     }
