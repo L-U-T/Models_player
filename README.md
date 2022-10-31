@@ -17,7 +17,7 @@ Play simple 3d animation on website, powered by Rust, WASM, Wgpu(WebGPU/WebGL)
 
 -   项目目录结构
 
-```s
+```bash
 .
 ├── Cargo.lock  // 不要修改此文件, 由包管理器自动维护
 ├── Cargo.toml  // 项目信息和依赖

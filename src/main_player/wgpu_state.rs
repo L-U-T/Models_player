@@ -1,5 +1,8 @@
 use once_cell::sync::OnceCell;
-use std::cell::{Cell, RefCell};
+use std::{
+    cell::{Cell, RefCell},
+    f32::consts::PI,
+};
 use web_sys::HtmlCanvasElement;
 use wgpu::util::DeviceExt;
 
@@ -10,7 +13,6 @@ use super::{
 
 static mut STATE: OnceCell<State> = OnceCell::new();
 
-#[derive(Debug)]
 pub(super) struct State {
     surface: wgpu::Surface,
     config: RefCell<wgpu::SurfaceConfiguration>,
@@ -27,6 +29,11 @@ pub(super) struct State {
 
     height: Cell<u32>,
     width: Cell<u32>,
+
+    animation: OnceCell<(
+        RefCell<Vec<Box<dyn Fn(&State)>>>,
+        gloo::timers::callback::Interval,
+    )>,
 }
 
 impl State {
@@ -81,7 +88,7 @@ impl State {
         let camera = camera::Camera {
             // position the camera one unit up and 2 units back
             // +z is out of the screen
-            eye: (0.0, 0.0, 2.0).into(),
+            eye: (5.0, 0.0, 0.0).into(),
             // have it look at the origin
             target: (0.0, 0.0, 0.0).into(),
             // which way is "up"
@@ -149,6 +156,8 @@ impl State {
 
                 height,
                 width,
+
+                animation: OnceCell::new(),
             })
         })
     }
@@ -168,38 +177,37 @@ impl State {
             config.height = height;
         }
 
-        {
+        // camera controller
+        let camera_pos = {
             let dr = 0.0f32;
 
             let mut camera_pos = self.camera.get().get_pos();
             let mut r_xy = camera_pos.0.hypot(camera_pos.1);
             let r = r_xy.hypot(camera_pos.2) + dr;
 
-            let dz = (d_cursor_to.0 as f32 / 1000.0).cos() * r;
-            let dr_xy = (d_cursor_to.0 as f32 / 1000.0).sin() * r;
+            camera_pos.2 = (d_cursor_to.0 as f32 * PI).cos() * r;
+            r_xy = (d_cursor_to.0 as f32 * PI).sin() * r;
 
-            camera_pos.2 = dz;
-            r_xy = dr_xy;
+            camera_pos.0 = (d_cursor_to.1 as f32 * PI).sin() * r_xy;
+            camera_pos.1 = (d_cursor_to.1 as f32 * PI).cos() * r_xy;
 
-            let dx = (d_cursor_to.1 as f32 / 1000.0).sin() * r_xy;
-            let dy = (d_cursor_to.1 as f32 / 1000.0).cos() * r_xy;
+            camera_pos
+        };
 
-            camera_pos.0 = dx;
-            camera_pos.1 = dy;
+        //TODO:DEBUG
+        gloo::console::log!(format!("{:?}", camera_pos));
 
-            gloo::console::log!(format!("{:?}", camera_pos));
+        self.camera.set(camera::Camera {
+            eye: cgmath::Point3 {
+                x: camera_pos.0,
+                y: camera_pos.1,
+                z: camera_pos.2,
+            },
+            aspect: width as f32 / height as f32,
+            ..self.camera.get()
+        });
 
-            self.camera.set(camera::Camera {
-                eye: cgmath::Point3 {
-                    x: camera_pos.0,
-                    y: camera_pos.1,
-                    z: camera_pos.2,
-                },
-                aspect: width as f32 / height as f32,
-                ..self.camera.get()
-            });
-        }
-
+        // effect camera change
         {
             let mut camera_uniform = self.camera_uniform.get();
             camera_uniform.update_view_proj(&self.camera.get());
@@ -214,8 +222,34 @@ impl State {
         self.render()
     }
 
-    pub fn anima_pass(&self) -> PlayerErrorResult<()> {
-        self.render()
+    /// # TODO
+    ///  - add time difference as attribute for f
+    ///  - fix preemption problem if possible
+    pub fn animation_push(&self, f: Box<dyn for<'r> Fn(&'r State)>) {
+        if let Some(state) = unsafe { STATE.get() } {
+            if let Some((anima_loop, _)) = state.animation.get() {
+                anima_loop.borrow_mut().push(f);
+            } else {
+                state.animation.get_or_init(|| {
+                    (
+                        RefCell::new(vec![f]),
+                        gloo::timers::callback::Interval::new(17, || {
+                            if let Some((animation_loop, _)) = state.animation.get() {
+                                animation_loop.borrow().iter().for_each(|f| f(state));
+                            }
+                        }),
+                    )
+                });
+            }
+        }
+    }
+
+    pub fn animation_clear(&self) {
+        if let Some(state) = unsafe { STATE.get() } {
+            if let Some((animation_loop, _)) = state.animation.get() {
+                animation_loop.borrow_mut().clear();
+            }
+        }
     }
 
     fn render(&self) -> PlayerErrorResult<()> {
