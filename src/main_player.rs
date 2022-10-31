@@ -18,13 +18,7 @@ impl WithRander for Rander {
         {
             let canvas = canvas.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let state = State::get_or_init(&canvas).await.unwrap();
-
-                //render pass per 17 ms
-                gloo::timers::callback::Interval::new(17, || {
-                    state.anima_pass().unwrap();
-                })
-                .forget();
+                let _ = State::get_or_init(&canvas).await.unwrap();
             });
         }
 
@@ -32,6 +26,14 @@ impl WithRander for Rander {
             state
                 .display_change(canvas.width(), canvas.height(), self.cursor_to)
                 .unwrap();
+
+            // you have to clear the anima_list here,
+            // bucause this function will be called after
+            // every update, clear the anima_list can
+            // prevent repeat push these closures
+            state.animation_clear();
+
+            state.animation_push(Box::new(|_| gloo::console::log!("anima!")));
         }
     }
 }
@@ -39,16 +41,11 @@ impl WithRander for Rander {
 #[function_component(MainPlayer)]
 pub fn main_player() -> Html {
     let is_hold_state = use_state(|| false);
-    let cursor_move_state = use_state(|| (0i32, 0i32));
-    let cursor_to_state = use_state(|| (0i32, 0i32));
+    let cursor_to_state = use_state(|| (1i32, 0i32));
 
     let onmousedown = {
         let is_hold_state = is_hold_state.clone();
-        let cursor_move_state = cursor_move_state.clone();
-        Callback::from(move |e: MouseEvent| {
-            let cursor = (e.screen_x(), e.screen_y());
-            cursor_move_state.set(cursor);
-
+        Callback::from(move |_| {
             is_hold_state.set(true);
         })
     };
@@ -67,9 +64,10 @@ pub fn main_player() -> Html {
             if *is_hold_state {
                 let cursor = (e.screen_x(), e.screen_y());
 
-                cursor_to_state.set((cursor_move_state.0 - cursor.0, cursor_move_state.1 - cursor.1));
-
-                cursor_move_state.set(cursor);
+                cursor_to_state.set((
+                    (cursor_to_state.0 + cursor.0) % 360,
+                    (cursor_to_state.1 + cursor.1) % 360,
+                ));
             }
         })
     };

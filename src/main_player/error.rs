@@ -10,4 +10,8 @@ pub enum MainPlayerError {
     StateNotInitError,
     #[error("Something wrong with the surface of wgpu state.")]
     SurfaceError(#[from] wgpu::SurfaceError),
+    #[error("Failed to load resources from static.")]
+    LoadError(#[from] tobj::LoadError),
+    #[error("Fail to have a net request.")]
+    RequestError(#[from] crate::requests::RequestError)
 }

@@ -1,6 +1,6 @@
 use image::RgbaImage;
 
-use crate::main_player::error::PlayerErrorResult;
+use crate::{main_player::error::PlayerErrorResult, requests};
 
 #[derive(Debug)]
 pub struct Texture {
@@ -13,7 +13,7 @@ impl Texture {
     pub(crate) fn from_image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        texture_img: TextureImage,
+        texture_img: requests::Image,
         label: Option<&str>,
         is_normal_map: bool,
     ) -> PlayerErrorResult<Self> {
@@ -115,23 +115,5 @@ impl Texture {
             view,
             sampler,
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TextureImage {
-    diffuse_rgba: RgbaImage,
-    /// (width, height) of image texture
-    dimensions: (u32, u32),
-}
-
-impl TextureImage {
-    pub(crate) fn into_diffuse_rgba(self) -> RgbaImage {
-        self.diffuse_rgba
-    }
-
-    /// (width, height) of image texture
-    pub(crate) fn dimensions(&self) -> (u32, u32) {
-        self.dimensions
     }
 }
