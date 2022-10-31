@@ -50,7 +50,7 @@ impl State {
                 force_fallback_adapter: false,
             })
             .await
-            .unwrap();
+            .expect("unexpected error cause adapter not available");
 
         let (device, queue) = adapter
             .request_device(
@@ -263,4 +263,8 @@ impl State {
 
         Ok(())
     }
+}
+
+pub(crate) trait Vertex {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
 }
