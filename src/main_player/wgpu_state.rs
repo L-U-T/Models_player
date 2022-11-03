@@ -364,9 +364,12 @@ impl State {
         width: u32,
         height: u32,
         cursor_to: (f32, f32),
+        wheel_to: f32,
     ) -> PlayerErrorResult<()> {
         self.width.set(width);
         self.height.set(height);
+
+        gloo::console::log!("w", width, "h", height);
 
         {
             let mut config = self.config.borrow_mut();
@@ -378,25 +381,18 @@ impl State {
         let camera_pos = {
             let mut camera_pos = self.camera.get().get_pos();
 
-            let mut r_xy = camera_pos.0.hypot(camera_pos.2);
-            let r = r_xy.hypot(camera_pos.1);
+            let r = wheel_to;
 
+            let r_xy = (cursor_to.1 * PI).sin() * r;
             camera_pos.1 = (cursor_to.1 * PI).cos() * r;
-            r_xy = (cursor_to.1 * PI).sin() * r;
 
             camera_pos.0 = (cursor_to.0 * PI).cos() * r_xy;
             camera_pos.2 = (cursor_to.0 * PI).sin() * r_xy;
 
-            //TODO:DEBUG
-            gloo::console::log!(format!(
-                "camera_pos: {:?}, cursor_to: {:?}",
-                camera_pos, cursor_to
-            ));
-
             camera_pos
         };
 
-        self.camera.set(camera::Camera {
+        let camera = camera::Camera {
             eye: cgmath::Point3 {
                 x: camera_pos.0,
                 y: camera_pos.1,
@@ -404,13 +400,16 @@ impl State {
             },
             aspect: width as f32 / height as f32,
             ..self.camera.get()
-        });
+        };
+
+        self.camera.set(camera);
 
         // effect camera change
         {
             let mut camera_uniform = self.camera_uniform.get();
-            camera_uniform.update_view_proj(&self.camera.get());
+            camera_uniform.update_view_proj(&camera);
             self.camera_uniform.set(camera_uniform);
+
             self.queue.write_buffer(
                 &self.camera_buffer,
                 0,
