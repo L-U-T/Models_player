@@ -27,5 +27,5 @@ features = ["png", "jpeg"]
 version = "0.24.3"
 
 [dependencies.web-sys]
-features = ["HtmlCanvasElement", "WebGl2RenderingContext", "DragEvent", "HtmlDivElement"]
+features = ["HtmlCanvasElement", "WebGl2RenderingContext", "HtmlDivElement"]
 version = "0.3.60"

@@ -100,6 +100,7 @@ where
             );
         }
     }
+    
     fn draw_model_instanced_with_material(
         &mut self,
         model: &'b Model,
