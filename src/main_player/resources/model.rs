@@ -2,25 +2,21 @@ use crate::{main_player::error::PlayerErrorResult, requests};
 
 use self::{material::Material, mesh::Mesh};
 
-mod draw_trait;
+pub mod draw_trait;
 mod material;
-mod mesh;
-mod vertex;
+pub(super) mod mesh;
+pub mod vertex;
 
 #[derive(Debug)]
-pub(crate) struct Model {
-    pub(crate) meshes: Vec<Mesh>,
+pub struct Model {
+    pub meshes: Vec<Mesh>,
     pub(crate) materials: Vec<Material>,
 }
 
-use std::{
-    io::{BufReader, Cursor},
-    ops::Range,
-};
+use std::io::{BufReader, Cursor};
 
-use super::texture;
 impl Model {
-    pub(crate) async fn from_file_name(
+    pub async fn from_file_name(
         name: &str,
         device: &wgpu::Device,
         queue: &wgpu::Queue,

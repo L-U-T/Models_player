@@ -8,32 +8,29 @@ mod wgpu_state;
 
 #[derive(Clone, PartialEq)]
 pub(super) struct Rander {
-    pub cursor_to: (i32, i32),
+    pub cursor_to: (f32, f32),
 }
 
 use wgpu_state::State;
 
 impl WithRander for Rander {
     fn rand(self, canvas: &web_sys::HtmlCanvasElement) {
-        {
-            let canvas = canvas.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                let _ = State::get_or_init(&canvas).await.unwrap();
-            });
-        }
-
         if let Ok(state) = State::get() {
             state
                 .display_change(canvas.width(), canvas.height(), self.cursor_to)
                 .unwrap();
+        } else {
+            let canvas = canvas.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let state = State::get_or_init(&canvas).await.unwrap();
 
-            // you have to clear the anima_list here,
-            // bucause this function will be called after
-            // every update, clear the anima_list can
-            // prevent repeat push these closures
-            state.animation_clear();
+                state.animation_insert(
+                    "log test".to_owned(),
+                    Box::new(|_| gloo::console::log!("anima!")),
+                );
 
-            state.animation_push(Box::new(|_| gloo::console::log!("anima!")));
+                state.render().unwrap();
+            });
         }
     }
 }
@@ -41,7 +38,8 @@ impl WithRander for Rander {
 #[function_component(MainPlayer)]
 pub fn main_player() -> Html {
     let is_hold_state = use_state(|| false);
-    let cursor_to_state = use_state(|| (1i32, 0i32));
+    let cursor_to_state = use_state(|| (1.0, 0.0));
+    let is_first_state = use_state(|| true);
 
     let onmousedown = {
         let is_hold_state = is_hold_state.clone();
@@ -62,11 +60,11 @@ pub fn main_player() -> Html {
 
         Callback::from(move |e: MouseEvent| {
             if *is_hold_state {
-                let cursor = (e.screen_x(), e.screen_y());
+                let cursor = (e.screen_x() as f32 / 100000.0, e.screen_y() as f32 / 100000.0);
 
                 cursor_to_state.set((
-                    (cursor_to_state.0 + cursor.0) % 360,
-                    (cursor_to_state.1 + cursor.1) % 360,
+                    (cursor_to_state.0 + cursor.0) % 360.0,
+                    (cursor_to_state.1 + cursor.1) % 360.0,
                 ));
             }
         })
