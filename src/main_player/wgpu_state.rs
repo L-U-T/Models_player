@@ -149,13 +149,13 @@ impl State {
         let camera = camera::Camera {
             // position the camera one unit up and 2 units back
             // +z is out of the screen
-            eye: (10.0, 0.0, 0.0).into(),
+            eye: (100.0, 0.0, 0.0).into(),
             // have it look at the origin
             target: (0.0, 0.0, 0.0).into(),
             // which way is "up"
             up: cgmath::Vector3::unit_y(),
             aspect: config.width as f32 / config.height as f32,
-            fovy: 100.0,
+            fovy: 10.0,
             znear: 0.1,
             zfar: 10000.0,
         };
@@ -354,7 +354,7 @@ impl State {
         &self,
         width: u32,
         height: u32,
-        d_cursor_to: (f32, f32),
+        cursor_to: (f32, f32),
     ) -> PlayerErrorResult<()> {
         self.width.set(width);
         self.height.set(height);
@@ -369,22 +369,20 @@ impl State {
         let camera_pos = {
             let mut camera_pos = self.camera.get().get_pos();
 
-            let dr = 0.0f32;
-
             let mut r_xy = camera_pos.0.hypot(camera_pos.2);
-            let r = r_xy.hypot(camera_pos.1) + dr;
+            let r = r_xy.hypot(camera_pos.1);
 
-            camera_pos.1 = (d_cursor_to.0 * PI).cos() * r;
-            r_xy = (d_cursor_to.0 * PI).sin() * r;
+            camera_pos.1 = (cursor_to.1 * PI).cos() * r;
+            r_xy = (cursor_to.1 * PI).sin() * r;
 
-            camera_pos.0 = (d_cursor_to.1 * PI).sin() * r_xy;
-            camera_pos.2 = (d_cursor_to.1 * PI).cos() * r_xy;
+            camera_pos.0 = (cursor_to.0 * PI).cos() * r_xy;
+            camera_pos.2 = (cursor_to.0 * PI).sin() * r_xy;
+
+            //TODO:DEBUG
+            gloo::console::log!(format!("camera_pos: {:?}, cursor_to: {:?}", camera_pos, cursor_to));
 
             camera_pos
         };
-
-        //TODO:DEBUG
-        gloo::console::log!(format!("{:?}", camera_pos));
 
         self.camera.set(camera::Camera {
             eye: cgmath::Point3 {

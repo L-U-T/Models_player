@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use web_sys::WebGl2RenderingContext;
 use yew::prelude::*;
 use yew_canvas::{Canvas, WithRander};
@@ -24,10 +26,7 @@ impl WithRander for Rander {
             wasm_bindgen_futures::spawn_local(async move {
                 let state = State::get_or_init(&canvas).await.unwrap();
 
-                state.animation_insert(
-                    "log test".to_owned(),
-                    Box::new(|_| gloo::console::log!("anima!")),
-                );
+                state.animation_insert("log test".to_owned(), Box::new(|_| ()));
 
                 state.render().unwrap();
             });
@@ -35,15 +34,21 @@ impl WithRander for Rander {
     }
 }
 
+const SPEED:f32 = 0.001;
+
 #[function_component(MainPlayer)]
 pub fn main_player() -> Html {
     let is_hold_state = use_state(|| false);
-    let cursor_to_state = use_state(|| (1.0, 0.0));
-    let is_first_state = use_state(|| true);
+    let cursor_state = use_state(|| (0.0, 0.0));
+    let cursor_to_state = use_state(|| (-1.0, -0.5));
 
     let onmousedown = {
+        let cursor_state = cursor_state.clone();
         let is_hold_state = is_hold_state.clone();
-        Callback::from(move |_| {
+        Callback::from(move |e: MouseEvent| {
+            let cursor = (e.screen_x() as f32 * SPEED, e.screen_y() as f32 * SPEED);
+
+            cursor_state.set(cursor);
             is_hold_state.set(true);
         })
     };
@@ -60,12 +65,14 @@ pub fn main_player() -> Html {
 
         Callback::from(move |e: MouseEvent| {
             if *is_hold_state {
-                let cursor = (e.screen_x() as f32 / 100000.0, e.screen_y() as f32 / 100000.0);
+                let cursor = (e.screen_x() as f32 * SPEED, e.screen_y() as f32 * SPEED);
 
                 cursor_to_state.set((
-                    (cursor_to_state.0 + cursor.0) % 360.0,
-                    (cursor_to_state.1 + cursor.1) % 360.0,
+                    (cursor_to_state.0 + cursor.0 - cursor_state.0) % 360.0,
+                    (cursor_to_state.1 + cursor.1 - cursor_state.1) % 360.0,
                 ));
+
+                cursor_state.set(cursor);
             }
         })
     };
