@@ -34,7 +34,7 @@ impl WithRander for Rander {
     }
 }
 
-const SPEED:f32 = 0.001;
+const SPEED:f32 = 0.003;
 
 #[function_component(MainPlayer)]
 pub fn main_player() -> Html {

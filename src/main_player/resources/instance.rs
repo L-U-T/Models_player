@@ -22,8 +22,8 @@ pub struct InstanceRaw {
     normal: [[f32; 3]; 3],
 }
 
-pub const NUM_INSTANCES_PER_ROW: u32 = 10;
-pub const SPACE_BETWEEN: f32 = 3.0;
+pub const NUM_INSTANCES_PER_ROW: u32 = 1;
+pub const SPACE_BETWEEN: f32 = 0.0;
 
 impl InstanceRaw {
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {

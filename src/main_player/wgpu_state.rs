@@ -22,7 +22,7 @@ pub(super) struct State {
     device: wgpu::Device,
     queue: wgpu::Queue,
 
-    obj_model: model::Model,
+    obj_models: HashMap<String, model::Model>,
 
     light_uniform: light::LightUniform,
     light_buffer: wgpu::Buffer,
@@ -140,10 +140,19 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let obj_model =
+        let mut obj_models = HashMap::new();
+
+        let yueqin_obj_model =
+            model::Model::from_file_name("Yueqin.obj", &device, &queue, &texture_bind_group_layout)
+                .await
+                .unwrap();
+        obj_models.insert("yueqin".to_owned(), yueqin_obj_model);
+
+        let cube_obj_model =
             model::Model::from_file_name("cube.obj", &device, &queue, &texture_bind_group_layout)
                 .await
                 .unwrap();
+        obj_models.insert("cube".to_owned(), cube_obj_model);
 
         //==Camera==
         let camera = camera::Camera {
@@ -330,7 +339,7 @@ impl State {
 
                 depth_texture,
 
-                obj_model,
+                obj_models,
 
                 light_uniform,
                 light_buffer,
@@ -379,7 +388,10 @@ impl State {
             camera_pos.2 = (cursor_to.0 * PI).sin() * r_xy;
 
             //TODO:DEBUG
-            gloo::console::log!(format!("camera_pos: {:?}, cursor_to: {:?}", camera_pos, cursor_to));
+            gloo::console::log!(format!(
+                "camera_pos: {:?}, cursor_to: {:?}",
+                camera_pos, cursor_to
+            ));
 
             camera_pos
         };
@@ -488,7 +500,7 @@ impl State {
             use light::DrawLight;
             render_pass.set_pipeline(&self.light_render_pipeline);
             render_pass.draw_light_model(
-                &self.obj_model,
+                &self.obj_models.get("cube").unwrap(),
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );
@@ -496,7 +508,7 @@ impl State {
             render_pass.set_pipeline(&self.render_pipeline);
             model::draw_trait::DrawModel::draw_model_instanced(
                 &mut render_pass,
-                &self.obj_model,
+                &self.obj_models.get("yueqin").unwrap(),
                 0..self.instances.len() as u32,
                 &self.camera_bind_group,
                 &self.light_bind_group,

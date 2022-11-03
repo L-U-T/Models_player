@@ -23,8 +23,9 @@ impl Model {
         layout: &wgpu::BindGroupLayout,
     ) -> PlayerErrorResult<Self> {
         let obj_text = requests::request_string(&format!("/static/obj/{}", name))
-            .await
-            .unwrap();
+        .await
+        .unwrap();
+
         let obj_cursor = Cursor::new(obj_text);
         let mut obj_reader = BufReader::new(obj_cursor);
 
