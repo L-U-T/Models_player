@@ -16,33 +16,29 @@ use super::{
 static mut STATE: OnceCell<State> = OnceCell::new();
 
 pub(super) struct State {
-    surface: wgpu::Surface,
-    config: RefCell<wgpu::SurfaceConfiguration>,
+    pub surface: wgpu::Surface,
+    pub config: RefCell<wgpu::SurfaceConfiguration>,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub obj_models: HashMap<String, model::Model>,
 
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+    pub light_uniform: Cell<light::LightUniform>,
+    pub light_buffer: wgpu::Buffer,
+    pub light_bind_group: wgpu::BindGroup,
+    pub light_render_pipeline: wgpu::RenderPipeline,
 
-    obj_models: HashMap<String, model::Model>,
+    pub camera: Cell<camera::Camera>,
+    pub camera_uniform: Cell<camera::CameraUniform>,
+    pub camera_buffer: wgpu::Buffer,
+    pub camera_bind_group: wgpu::BindGroup,
 
-    light_uniform: light::LightUniform,
-    light_buffer: wgpu::Buffer,
-    light_bind_group: wgpu::BindGroup,
-    light_render_pipeline: wgpu::RenderPipeline,
+    pub instances: Vec<instance::Instance>,
+    pub instance_buffer: wgpu::Buffer,
 
-    camera: Cell<camera::Camera>,
-    camera_uniform: Cell<camera::CameraUniform>,
-    camera_buffer: wgpu::Buffer,
-    camera_bind_group: wgpu::BindGroup,
-
-    instances: Vec<instance::Instance>,
-    instance_buffer: wgpu::Buffer,
-
-    depth_texture: texture::Texture,
-
-    render_pipeline: wgpu::RenderPipeline,
-
-    height: Cell<u32>,
-    width: Cell<u32>,
+    pub depth_texture: texture::Texture,
+    pub render_pipeline: wgpu::RenderPipeline,
+    pub height: Cell<u32>,
+    pub width: Cell<u32>,
 
     animation: OnceCell<(
         RefCell<HashMap<String, Box<dyn Fn(&State)>>>,
@@ -322,6 +318,7 @@ impl State {
         );
 
         let config = RefCell::new(config);
+        let light_uniform = Cell::new(light_uniform);
         let (camera, camera_uniform) = (Cell::new(camera), Cell::new(camera_uniform));
         let (width, height) = (Cell::new(width), Cell::new(height));
 
@@ -438,7 +435,9 @@ impl State {
                         gloo::timers::callback::Interval::new(17, || {
                             if let Some((animation_loop, _)) = state.animation.get() {
                                 animation_loop.borrow().iter().for_each(|(_, f)| f(state));
-                            }
+                            };
+
+                            state.render().unwrap();
                         }),
                     )
                 });

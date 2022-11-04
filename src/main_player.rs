@@ -1,3 +1,6 @@
+use std::borrow::Borrow;
+
+use cgmath::Rotation3;
 use web_sys::WebGl2RenderingContext;
 use yew::prelude::*;
 use yew_canvas::{Canvas, WithRander};
@@ -24,6 +27,33 @@ impl WithRander for Rander {
             let canvas = canvas.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let state = State::get_or_init(&canvas).await.unwrap();
+                state.animation_clear();
+
+                state.animation_insert(
+                    "light rotation".to_owned(),
+                    Box::new(|s| {
+                        let old_position: cgmath::Vector3<_> =
+                            s.light_uniform.get().position.into();
+
+                        {
+                            let mut light_uniform = s.light_uniform.get();
+
+                            light_uniform.position = (cgmath::Quaternion::from_axis_angle(
+                                (0.0, 1.0, 0.0).into(),
+                                cgmath::Deg(1.0),
+                            ) * old_position)
+                                .into();
+
+                            s.light_uniform.set(light_uniform);
+                        }
+
+                        s.queue.write_buffer(
+                            &s.light_buffer,
+                            0,
+                            bytemuck::cast_slice(&[s.light_uniform.get()]),
+                        );
+                    }),
+                );
 
                 state.render().unwrap();
             });
