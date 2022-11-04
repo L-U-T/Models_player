@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use cgmath::Rotation3;
 use web_sys::WebGl2RenderingContext;
 use yew::prelude::*;

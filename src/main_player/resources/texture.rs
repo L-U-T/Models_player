@@ -1,5 +1,3 @@
-use image::RgbaImage;
-
 use crate::{main_player::error::PlayerErrorResult, requests};
 
 #[derive(Debug)]
