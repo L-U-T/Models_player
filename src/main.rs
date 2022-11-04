@@ -6,8 +6,10 @@ mod requests;
 #[function_component(App)]
 fn app() -> Html {
     html!(
-        //Where the graphic show
-        <main_player::MainPlayer />
+        <>
+            //Where the graphic show
+            <main_player::MainPlayer />
+        </>
     )
 }
 

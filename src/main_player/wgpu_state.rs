@@ -25,7 +25,6 @@ pub(super) struct State {
     pub light_uniform: Cell<light::LightUniform>,
     pub light_buffer: wgpu::Buffer,
     pub light_bind_group: wgpu::BindGroup,
-    pub light_render_pipeline: wgpu::RenderPipeline,
 
     pub camera: Cell<camera::Camera>,
     pub camera_uniform: Cell<camera::CameraUniform>,
@@ -35,8 +34,11 @@ pub(super) struct State {
     pub instances: Vec<instance::Instance>,
     pub instance_buffer: wgpu::Buffer,
 
+    pub light_render_pipeline: wgpu::RenderPipeline,
+    pub yueqin_render_pipeline: wgpu::RenderPipeline,
+
     pub depth_texture: texture::Texture,
-    pub render_pipeline: wgpu::RenderPipeline,
+
     pub height: Cell<u32>,
     pub width: Cell<u32>,
 
@@ -236,23 +238,6 @@ impl State {
             label: None,
         });
 
-        let light_render_pipeline = {
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Light Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-            shader::Shader::from_file_name("Light Shader", "pure.wgsl")
-                .await?
-                .create_render_pipeline(
-                    &device,
-                    &layout,
-                    config.format,
-                    Some(texture::Texture::DEPTH_FORMAT),
-                    &[model::vertex::ModelVertex::desc()],
-                )
-        };
-
         //==Instances==
         let instances = (0..instance::NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
@@ -295,8 +280,8 @@ impl State {
         //==Shader==
         let shader = shader::Shader::from_file_name("Normal Shader", "bp.wgsl");
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        let yueqin_render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
                     &texture_bind_group_layout,
@@ -306,16 +291,35 @@ impl State {
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = shader.await?.create_render_pipeline(
-            &device,
-            &render_pipeline_layout,
-            config.format,
-            Some(texture::Texture::DEPTH_FORMAT),
-            &[
-                model::vertex::ModelVertex::desc(),
-                instance::InstanceRaw::desc(),
-            ],
-        );
+            shader.await?.create_render_pipeline(
+                &device,
+                &layout,
+                config.format,
+                Some(texture::Texture::DEPTH_FORMAT),
+                &[
+                    model::vertex::ModelVertex::desc(),
+                    instance::InstanceRaw::desc(),
+                ],
+            )
+        };
+
+        let light_render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Light Pipeline Layout"),
+                bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+            shader::Shader::from_file_name("Light Shader", "pure.wgsl")
+                .await?
+                .create_render_pipeline(
+                    &device,
+                    &layout,
+                    config.format,
+                    Some(texture::Texture::DEPTH_FORMAT),
+                    &[model::vertex::ModelVertex::desc()],
+                )
+        };
 
         let config = RefCell::new(config);
         let light_uniform = Cell::new(light_uniform);
@@ -341,12 +345,12 @@ impl State {
                 light_uniform,
                 light_buffer,
                 light_bind_group,
-                light_render_pipeline,
 
                 instances,
                 instance_buffer,
 
-                render_pipeline,
+                light_render_pipeline,
+                yueqin_render_pipeline,
 
                 height,
                 width,
@@ -503,7 +507,7 @@ impl State {
                 &self.light_bind_group,
             );
 
-            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_pipeline(&self.yueqin_render_pipeline);
             model::draw_trait::DrawModel::draw_model_instanced(
                 &mut render_pass,
                 &self.obj_models.get("yueqin").unwrap(),

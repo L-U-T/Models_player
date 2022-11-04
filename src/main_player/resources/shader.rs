@@ -7,14 +7,14 @@ pub(crate) struct Shader {
 
 impl Shader {
     pub(crate) async fn from_file_name<'a>(
-        name: &'a str,
+        lable: &'a str,
         filename: &str,
     ) -> PlayerErrorResult<Shader> {
         let code = crate::requests::request_string(&format!("static/shader/{}", filename))
             .await?;
 
         Ok(Self {
-            lable: name.to_string(),
+            lable: lable.to_string(),
             code,
         })
     }
