@@ -1,3 +1,6 @@
+use std::borrow::Borrow;
+
+use cgmath::Rotation3;
 use web_sys::WebGl2RenderingContext;
 use yew::prelude::*;
 use yew_canvas::{Canvas, WithRander};
@@ -8,44 +11,80 @@ mod wgpu_state;
 
 #[derive(Clone, PartialEq)]
 pub(super) struct Rander {
-    pub cursor_to: (i32, i32),
+    pub cursor_to: (f32, f32),
+    pub wheel_to: f32,
 }
 
 use wgpu_state::State;
 
+static mut CANVAS_SIZE: (u32, u32) = (0, 0);
+
 impl WithRander for Rander {
     fn rand(self, canvas: &web_sys::HtmlCanvasElement) {
-        {
+        let canvas_size = (canvas.width(), canvas.height());
+
+        if unsafe { CANVAS_SIZE != canvas_size } {
             let canvas = canvas.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let _ = State::get_or_init(&canvas).await.unwrap();
+                let state = State::get_or_init(&canvas).await.unwrap();
+                state.animation_clear();
+
+                state.animation_insert(
+                    "light rotation".to_owned(),
+                    Box::new(|s| {
+                        let old_position: cgmath::Vector3<_> =
+                            s.light_uniform.get().position.into();
+
+                        {
+                            let mut light_uniform = s.light_uniform.get();
+
+                            light_uniform.position = (cgmath::Quaternion::from_axis_angle(
+                                (0.0, 1.0, 0.0).into(),
+                                cgmath::Deg(1.0),
+                            ) * old_position)
+                                .into();
+
+                            s.light_uniform.set(light_uniform);
+                        }
+
+                        s.queue.write_buffer(
+                            &s.light_buffer,
+                            0,
+                            bytemuck::cast_slice(&[s.light_uniform.get()]),
+                        );
+                    }),
+                );
+
+                state.render().unwrap();
             });
+
+            unsafe { CANVAS_SIZE = canvas_size }
         }
 
         if let Ok(state) = State::get() {
             state
-                .display_change(canvas.width(), canvas.height(), self.cursor_to)
+                .display_change(canvas_size.0, canvas_size.1, self.cursor_to, self.wheel_to)
                 .unwrap();
-
-            // you have to clear the anima_list here,
-            // bucause this function will be called after
-            // every update, clear the anima_list can
-            // prevent repeat push these closures
-            state.animation_clear();
-
-            state.animation_push(Box::new(|_| gloo::console::log!("anima!")));
         }
     }
 }
 
+const SPEED: f32 = 0.003;
+
 #[function_component(MainPlayer)]
 pub fn main_player() -> Html {
     let is_hold_state = use_state(|| false);
-    let cursor_to_state = use_state(|| (1i32, 0i32));
+    let cursor_state = use_state(|| (0.0, 0.0));
+    let cursor_to_state = use_state(|| (-1.0, -0.5));
+    let wheel_to_state = use_state(|| 100.0);
 
     let onmousedown = {
+        let cursor_state = cursor_state.clone();
         let is_hold_state = is_hold_state.clone();
-        Callback::from(move |_| {
+        Callback::from(move |e: MouseEvent| {
+            let cursor = (e.screen_x() as f32 * SPEED, e.screen_y() as f32 * SPEED);
+
+            cursor_state.set(cursor);
             is_hold_state.set(true);
         })
     };
@@ -62,18 +101,34 @@ pub fn main_player() -> Html {
 
         Callback::from(move |e: MouseEvent| {
             if *is_hold_state {
-                let cursor = (e.screen_x(), e.screen_y());
+                let cursor = (e.screen_x() as f32 * SPEED, e.screen_y() as f32 * SPEED);
+                let cursor_to = (
+                    (cursor_to_state.0 + cursor.0 - cursor_state.0) % 2.0,
+                    (cursor_to_state.1 + cursor.1 - cursor_state.1),
+                );
 
-                cursor_to_state.set((
-                    (cursor_to_state.0 + cursor.0) % 360,
-                    (cursor_to_state.1 + cursor.1) % 360,
-                ));
+                cursor_to_state.set(if cursor_to.1 <= 0.0 && cursor_to.1 >= -1.0 {
+                    cursor_to
+                } else {
+                    *cursor_to_state
+                });
+
+                cursor_state.set(cursor);
             }
+        })
+    };
+
+    let onwheel = {
+        let wheel_to_state = wheel_to_state.clone();
+
+        Callback::from(move |e: WheelEvent| {
+            wheel_to_state.set((*wheel_to_state + (e.delta_y() as f32)).abs())
         })
     };
 
     let rander = Rander {
         cursor_to: *cursor_to_state,
+        wheel_to: *wheel_to_state,
     };
 
     html!(
@@ -81,6 +136,7 @@ pub fn main_player() -> Html {
             {onmousedown}
             {onmouseup}
             {onmousemove}
+            {onwheel}
             style="width: 100%; height: 100%;"
         >
             <Canvas<WebGl2RenderingContext , Rander>

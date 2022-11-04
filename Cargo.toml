@@ -18,7 +18,7 @@ wasm-bindgen = "0.2.83"
 wasm-bindgen-futures = "0.4.33"
 wgpu = {version = "0.14.0", features = ["webgl"]}
 yew = "0.19.3"
-yew-canvas = "0.2.1"
+yew-canvas = "0.2.3"
 thiserror = "1.0.37"
 
 [dependencies.image]
@@ -27,5 +27,5 @@ features = ["png", "jpeg"]
 version = "0.24.3"
 
 [dependencies.web-sys]
-features = ["HtmlCanvasElement", "WebGl2RenderingContext", "DragEvent", "HtmlDivElement"]
+features = ["HtmlCanvasElement", "WebGl2RenderingContext", "HtmlDivElement"]
 version = "0.3.60"

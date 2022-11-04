@@ -1422,9 +1422,9 @@ dependencies = [
 
 [[package]]
 name = "yew-canvas"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c5a1756fe3f791d0acf97b6d8ed4804187c03f9a3e9d404fe2a1df73c74ecf4"
+checksum = "0b18023a02bc12b7ffaca690955a0c59dfe0d29b3ad616eb361f179c38cae0b1"
 dependencies = [
  "gloo 0.8.0",
  "wasm-bindgen",
