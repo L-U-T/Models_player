@@ -57,7 +57,11 @@ impl State {
         }
     }
 
-    pub async fn get_or_init<'a>(canvas: &HtmlCanvasElement) -> PlayerErrorResult<&'a State> {
+    pub async fn init<'a>(canvas: &HtmlCanvasElement) -> PlayerErrorResult<&'a State> {
+        unsafe {
+            STATE = OnceCell::new();
+        }
+
         let (width, height) = (canvas.width(), canvas.height());
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());

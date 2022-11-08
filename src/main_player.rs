@@ -24,7 +24,7 @@ impl WithRander for Rander {
         if unsafe { CANVAS_SIZE != canvas_size } {
             let canvas = canvas.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let state = State::get_or_init(&canvas).await.unwrap();
+                let state = State::init(&canvas).await.unwrap();
                 state.animation_clear();
 
                 state.animation_insert(
