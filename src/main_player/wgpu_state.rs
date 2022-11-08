@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Rotation3, Zero};
+use cgmath::Rotation3;
 use once_cell::sync::OnceCell;
 use std::{
     cell::{Cell, RefCell},
@@ -57,7 +57,11 @@ impl State {
         }
     }
 
-    pub async fn get_or_init<'a>(canvas: &HtmlCanvasElement) -> PlayerErrorResult<&'a State> {
+    pub async fn init<'a>(canvas: &HtmlCanvasElement) -> PlayerErrorResult<&'a State> {
+        unsafe {
+            STATE = OnceCell::new();
+        }
+
         let (width, height) = (canvas.width(), canvas.height());
 
         let instance = wgpu::Instance::new(wgpu::Backends::all());
@@ -152,6 +156,12 @@ impl State {
                 .unwrap();
         obj_models.insert("cube".to_owned(), cube_obj_model);
 
+        let plane_obj_model =
+            model::Model::from_file_name("plane.obj", &device, &queue, &texture_bind_group_layout)
+                .await
+                .unwrap();
+        obj_models.insert("plane".to_owned(), plane_obj_model);
+
         //==Camera==
         let camera = camera::Camera {
             // position the camera one unit up and 2 units back
@@ -162,9 +172,9 @@ impl State {
             // which way is "up"
             up: cgmath::Vector3::unit_y(),
             aspect: config.width as f32 / config.height as f32,
-            fovy: 10.0,
+            fovy: 20.0,
             znear: 0.1,
-            zfar: 10000.0,
+            zfar: 3.0e28,
         };
 
         let mut camera_uniform = camera::CameraUniform::new();
@@ -202,7 +212,7 @@ impl State {
 
         //==Light==
         let light_uniform = light::LightUniform {
-            position: [2.0, 2.0, 2.0],
+            position: [2.0, 5.0, 2.0],
             _padding: 0,
             color: [1.0, 1.0, 1.0],
             _padding2: 0,
@@ -239,34 +249,39 @@ impl State {
         });
 
         //==Instances==
-        let instances = (0..instance::NUM_INSTANCES_PER_ROW)
-            .flat_map(|z| {
-                (0..instance::NUM_INSTANCES_PER_ROW).map(move |x| {
-                    let x = instance::SPACE_BETWEEN
-                        * (x as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
-                    let z = instance::SPACE_BETWEEN
-                        * (z as f32 - instance::NUM_INSTANCES_PER_ROW as f32 / 2.0);
+        let mut instances = Vec::new();
 
-                    let position = cgmath::Vector3 { x, y: 0.0, z };
+        instances.push(instance::Instance {
+            position: cgmath::Vector3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            rotation: cgmath::Quaternion::from_axis_angle(
+                cgmath::Vector3::unit_z(),
+                cgmath::Deg(0.0),
+            ),
+            scale: 1.0,
+        });
 
-                    let rotation = if position.is_zero() {
-                        cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_z(),
-                            cgmath::Deg(0.0),
-                        )
-                    } else {
-                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
-                    };
-
-                    instance::Instance { position, rotation }
-                })
-            })
-            .collect::<Vec<_>>();
+        instances.push(instance::Instance {
+            position: cgmath::Vector3 {
+                x: 0.0,
+                y: -10.0,
+                z: 0.0,
+            },
+            rotation: cgmath::Quaternion::from_axis_angle(
+                cgmath::Vector3::unit_z(),
+                cgmath::Deg(0.0),
+            ),
+            scale: 1.0,
+        });
 
         let instance_data = instances
             .iter()
             .map(instance::Instance::to_raw)
             .collect::<Vec<_>>();
+
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
@@ -369,8 +384,6 @@ impl State {
     ) -> PlayerErrorResult<()> {
         self.width.set(width);
         self.height.set(height);
-
-        gloo::console::log!("w", width, "h", height);
 
         {
             let mut config = self.config.borrow_mut();
@@ -511,7 +524,16 @@ impl State {
             model::draw_trait::DrawModel::draw_model_instanced(
                 &mut render_pass,
                 &self.obj_models.get("yueqin").unwrap(),
-                0..self.instances.len() as u32,
+                0..1,
+                &self.camera_bind_group,
+                &self.light_bind_group,
+            );
+
+            render_pass.set_pipeline(&self.yueqin_render_pipeline);
+            model::draw_trait::DrawModel::draw_model_instanced(
+                &mut render_pass,
+                &self.obj_models.get("plane").unwrap(),
+                1..self.instances.len() as u32,
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );

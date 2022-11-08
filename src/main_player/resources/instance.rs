@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance {
     pub position: cgmath::Vector3<f32>,
+    pub scale: f32,
     pub rotation: cgmath::Quaternion<f32>,
 }
 
@@ -8,22 +9,20 @@ impl Instance {
     pub fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
             model: (cgmath::Matrix4::from_translation(self.position)
-                * cgmath::Matrix4::from(self.rotation))
+                * cgmath::Matrix4::from(self.rotation) * cgmath::Matrix4::from_scale(self.scale))
             .into(),
+
             normal: cgmath::Matrix3::from(self.rotation).into(),
         }
     }
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq,Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, PartialEq, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct InstanceRaw {
     model: [[f32; 4]; 4],
     normal: [[f32; 3]; 3],
 }
-
-pub const NUM_INSTANCES_PER_ROW: u32 = 1;
-pub const SPACE_BETWEEN: f32 = 0.0;
 
 impl InstanceRaw {
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
@@ -79,4 +78,3 @@ impl InstanceRaw {
         }
     }
 }
-
