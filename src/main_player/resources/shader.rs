@@ -1,20 +1,20 @@
 use crate::main_player::error::PlayerErrorResult;
 
 pub(crate) struct Shader {
-    lable: String,
+    label: String,
     code: String,
 }
 
 impl Shader {
     pub(crate) async fn from_file_name<'a>(
-        lable: &'a str,
+        label: &'a str,
         filename: &str,
     ) -> PlayerErrorResult<Shader> {
         let code = crate::requests::request_string(&format!("static/shader/{}", filename))
             .await?;
 
         Ok(Self {
-            lable: lable.to_string(),
+            label: label.to_string(),
             code,
         })
     }
@@ -28,7 +28,7 @@ impl Shader {
         vertex_layouts: &[wgpu::VertexBufferLayout],
     ) -> wgpu::RenderPipeline {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(&self.lable),
+            label: Some(&self.label),
             source: wgpu::ShaderSource::Wgsl(self.code.clone().into()),
         });
 
