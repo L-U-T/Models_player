@@ -19,11 +19,15 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 );
 
 impl Camera {
-    pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+    pub fn build_view_matrix(&self) -> cgmath::Matrix4<f32> {
         let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
+
+        return view;
+    }
+    pub fn build_projection_matrix(&self) -> cgmath::Matrix4<f32> {
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
 
-        return OPENGL_TO_WGPU_MATRIX * proj * view;
+        return OPENGL_TO_WGPU_MATRIX * proj;
     }
 
     pub fn get_pos(&self) -> (f32, f32, f32) {
@@ -35,20 +39,23 @@ impl Camera {
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
     view_position: [f32; 4],
-    view_proj: [[f32; 4]; 4],
+    view_matrix: [[f32; 4]; 4],
+    project_matrix: [[f32; 4]; 4],
 }
 
 impl CameraUniform {
     pub fn new() -> Self {
         Self {
             view_position: [0.0; 4],
-            view_proj: cgmath::Matrix4::identity().into(),
+            view_matrix: cgmath::Matrix4::identity().into(),
+            project_matrix: cgmath::Matrix4::identity().into(),
         }
     }
 
     pub fn update_view_proj(&mut self, camera: &Camera) {
         // We're using Vector4 because of the uniforms 16 byte spacing requirement
         self.view_position = camera.eye.to_homogeneous().into();
-        self.view_proj = (OPENGL_TO_WGPU_MATRIX * camera.build_view_projection_matrix()).into();
+        self.view_matrix = (OPENGL_TO_WGPU_MATRIX * camera.build_view_matrix()).into();
+        self.project_matrix = (OPENGL_TO_WGPU_MATRIX * camera.build_projection_matrix()).into();
     }
 }
