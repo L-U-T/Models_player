@@ -34,6 +34,7 @@ pub(super) struct State {
     pub instances: Vec<instance::Instance>,
     pub instance_buffer: wgpu::Buffer,
 
+    pub skybox_render_pipeline: wgpu::RenderPipeline,
     pub light_render_pipeline: wgpu::RenderPipeline,
     pub yueqin_render_pipeline: wgpu::RenderPipeline,
 
@@ -161,6 +162,12 @@ impl State {
                 .await
                 .unwrap();
         obj_models.insert("plane".to_owned(), plane_obj_model);
+
+        let skybox_obj_model =
+            model::Model::from_file_name("skybox.obj", &device, &queue, &texture_bind_group_layout)
+                .await
+                .unwrap();
+        obj_models.insert("skybox".to_owned(), skybox_obj_model);
 
         //==Camera==
         let camera = camera::Camera {
@@ -293,9 +300,7 @@ impl State {
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
         //==Shader==
-        let shader = shader::Shader::from_file_name("Normal Shader", "bp.wgsl");
-
-        let yueqin_render_pipeline = {
+        let skybox_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
@@ -306,7 +311,8 @@ impl State {
                 push_constant_ranges: &[],
             });
 
-            shader.await?.create_render_pipeline(
+            shader::Shader::from_file_name("Skybox Shader", "skybox.wgsl")
+            .await?.create_render_pipeline(
                 &device,
                 &layout,
                 config.format,
@@ -336,6 +342,33 @@ impl State {
                 )
         };
 
+        let yueqin_render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[
+                    &texture_bind_group_layout,
+                    &camera_bind_group_layout,
+                    &light_bind_group_layout,
+                ],
+                push_constant_ranges: &[],
+            });
+
+            shader::Shader::from_file_name("Common Shader", "bp.wgsl")
+            .await?.create_render_pipeline(
+                &device,
+                &layout,
+                config.format,
+                Some(texture::Texture::DEPTH_FORMAT),
+                &[
+                    model::vertex::ModelVertex::desc(),
+                    instance::InstanceRaw::desc(),
+                ],
+            )
+        };
+        
+
+
+
         let config = RefCell::new(config);
         let light_uniform = Cell::new(light_uniform);
         let (camera, camera_uniform) = (Cell::new(camera), Cell::new(camera_uniform));
@@ -364,6 +397,7 @@ impl State {
                 instances,
                 instance_buffer,
 
+                skybox_render_pipeline,
                 light_render_pipeline,
                 yueqin_render_pipeline,
 
@@ -482,6 +516,46 @@ impl State {
                 label: Some("Render Encoder"),
             });
 
+            {
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.0,
+                                g: 0.0,
+                                b: 0.0,
+                                a: 1.0,
+                            }),
+                            store: true,
+                        },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.depth_texture.view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: false,
+                        }),
+                        stencil_ops: None,
+                    }),
+                });
+    
+                // render()
+    
+                render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+    
+    
+                render_pass.set_pipeline(&self.skybox_render_pipeline);
+                model::draw_trait::DrawModel::draw_model_instanced(
+                    &mut render_pass,
+                    &self.obj_models.get("skybox").unwrap(),
+                    1..self.instances.len() as u32,
+                    &self.camera_bind_group,
+                    &self.light_bind_group,
+                );
+            }
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -489,12 +563,7 @@ impl State {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Load,
                         store: true,
                     },
                 })],
@@ -502,6 +571,7 @@ impl State {
                     view: &self.depth_texture.view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
+                        // load: wgpu::LoadOp::Load,
                         store: true,
                     }),
                     stencil_ops: None,
